@@ -1,0 +1,48 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User account information and settings",
+      "type": "object",
+      "properties": {
+        "displayName": { "type": "string", "description": "Full name of the user" },
+        "email": { "type": "string", "description": "Email address" },
+        "photoURL": { "type": "string", "description": "Profile picture URL" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["displayName", "email"]
+    },
+    "Match": {
+      "title": "Match Entry",
+      "description": "Details of a football match played by the user",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string", "format": "date-time" },
+        "opponent": { "type": "string", "description": "Optional opponent name" },
+        "goals": { "type": "integer", "description": "Goals scored by user" },
+        "assists": { "type": "integer", "description": "Assists provided by user" },
+        "scoreFor": { "type": "integer", "description": "Team goals" },
+        "scoreAgainst": { "type": "integer", "description": "Opponent goals" },
+        "rating": { "type": "number", "description": "Personal performance rating (1-10)" },
+        "yellowCards": { "type": "integer", "description": "Number of yellow cards" },
+        "redCards": { "type": "integer", "description": "Number of red cards (0 or 1)" },
+        "injury": { "type": "boolean", "description": "Whether the user got injured" },
+        "notes": { "type": "string", "description": "Brief match report or notes" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "userId": { "type": "string", "description": "The owner of the match entry" }
+      },
+      "required": ["date", "goals", "assists", "rating", "userId"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Public user profiles"
+    },
+    "/users/{userId}/matches/{matchId}": {
+      "schema": "Match",
+      "description": "Chronological diary of matches played"
+    }
+  }
+}
