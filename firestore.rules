@@ -30,7 +30,13 @@ service cloud.firestore {
     // Validation for User
     function isValidUser(data) {
       return data.displayName is string && data.displayName.size() <= 100 &&
-             data.email is string && data.email.size() <= 100;
+             data.email is string && data.email.size() <= 100 &&
+             (data.get('photoURL', null) == null || (data.get('photoURL', null) is string && data.get('photoURL', null).size() <= 1000)) &&
+             (data.get('birthDate', null) == null || (data.get('birthDate', null) is string && data.get('birthDate', null).size() <= 20)) &&
+             (data.get('favoriteTeam', null) == null || (data.get('favoriteTeam', null) is string && data.get('favoriteTeam', null).size() <= 100)) &&
+             (data.get('positions', null) == null || (data.get('positions', null) is list && data.get('positions', null).size() <= 20)) &&
+             (data.get('myTeams', null) == null || (data.get('myTeams', null) is list && data.get('myTeams', null).size() <= 20)) &&
+             (data.get('uid', null) == null || (data.get('uid', null) is string && data.get('uid', null).size() <= 128));
     }
 
     // Validation for Match
@@ -49,7 +55,8 @@ service cloud.firestore {
       allow list: if false; // Users shouldn't be listable by default
       allow create: if isOwner(userId) && isValidUser(incoming());
       allow update: if isOwner(userId) && isValidUser(incoming()) && 
-                    incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL']);
+                    incoming().email == existing().email &&
+                    (incoming().get('uid', null) == null || existing().get('uid', null) == null || incoming().uid == existing().uid);
     }
 
     match /users/{userId}/matches/{matchId} {

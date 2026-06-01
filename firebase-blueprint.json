@@ -8,7 +8,12 @@
         "displayName": { "type": "string", "description": "Full name of the user" },
         "email": { "type": "string", "description": "Email address" },
         "photoURL": { "type": "string", "description": "Profile picture URL" },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "birthDate": { "type": "string", "format": "date", "description": "Date of birth" },
+        "favoriteTeam": { "type": "string", "description": "Favorite football club" },
+        "positions": { "type": "array", "description": "Positions played" },
+        "myTeams": { "type": "array", "description": "Teams the user plays for" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["displayName", "email"]
     },

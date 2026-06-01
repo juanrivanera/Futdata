@@ -153,6 +153,8 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'diary' | 'stats' | 'calendar' | 'profile'>('dashboard');
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profileSaveSuccess, setProfileSaveSuccess] = useState(false);
+  const [profileSaveError, setProfileSaveError] = useState<string | null>(null);
 
   // Filter State
   const [searchQuery, setSearchQuery] = useState('');
@@ -276,15 +278,19 @@ export default function App() {
     e.preventDefault();
     if (!user || !profile) return;
     setIsSaving(true);
+    setProfileSaveSuccess(false);
+    setProfileSaveError(null);
     try {
       const userRef = doc(db, 'users', user.uid);
       await setDoc(userRef, {
         ...profile,
         updatedAt: serverTimestamp()
       }, { merge: true });
-      setShowFilters(false); // Just to clear some state or give UI feedback if needed
+      setProfileSaveSuccess(true);
+      setTimeout(() => setProfileSaveSuccess(false), 4000);
     } catch (err) {
       console.error("Profile update error:", err);
+      setProfileSaveError("No se pudieron guardar los cambios. Revisa los permisos.");
     } finally {
       setIsSaving(false);
     }
@@ -977,7 +983,7 @@ export default function App() {
                       type="text"
                       placeholder="Arquero, Central, Delantero..."
                       value={profile.positions?.join(', ') || ''}
-                      onChange={(e) => setProfile({...profile, positions: e.target.value.split(',').map(s => s.trim())})}
+                      onChange={(e) => setProfile({...profile, positions: e.target.value.split(',').map(s => s.trim()).filter(Boolean)})}
                       className="w-full bg-[#0A0C10] border-2 border-[#30363D] focus:border-[#238636] rounded-xl px-4 py-3 text-[#E1E4E8] outline-none transition-all font-medium placeholder:text-[#30363D]"
                     />
                   </div>
@@ -988,10 +994,30 @@ export default function App() {
                       type="text"
                       placeholder="Los Picapiedras FC, Senior B..."
                       value={profile.myTeams?.join(', ') || ''}
-                      onChange={(e) => setProfile({...profile, myTeams: e.target.value.split(',').map(s => s.trim())})}
+                      onChange={(e) => setProfile({...profile, myTeams: e.target.value.split(',').map(s => s.trim()).filter(Boolean)})}
                       className="w-full bg-[#0A0C10] border-2 border-[#30363D] focus:border-[#238636] rounded-xl px-4 py-3 text-[#E1E4E8] outline-none transition-all font-medium placeholder:text-[#30363D]"
                     />
                   </div>
+
+                  {profileSaveSuccess && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="p-4 bg-[#238636]/10 border border-[#238636]/30 text-[#238636] text-sm font-semibold rounded-xl text-center"
+                    >
+                      ¡Perfil actualizado con éxito!
+                    </motion.div>
+                  )}
+
+                  {profileSaveError && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="p-4 bg-[#f85149]/10 border border-[#f85149]/30 text-[#f85149] text-sm font-semibold rounded-xl text-center"
+                    >
+                      {profileSaveError}
+                    </motion.div>
+                  )}
 
                   <div className="pt-4">
                     <button 
