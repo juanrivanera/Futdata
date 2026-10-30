@@ -107,7 +107,7 @@ function MatchCard({ match, onDelete, onEdit }: { match: MatchEntry, onDelete: (
         </div>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
           <div className="flex items-center gap-1.5 shrink-0">
-            <span className="text-[9px] text-[#8B949E] uppercase tracking-widest font-mono">Rating</span>
+            <span className="text-[9px] text-[#8B949E] uppercase tracking-widest font-mono">Calificación</span>
             <div className="bg-[#238636]/10 text-[#238636] px-2 py-0.5 rounded text-[10px] font-bold border border-[#238636]/20">
               {match.rating.toFixed(1)}
             </div>
@@ -152,7 +152,7 @@ export default function App() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingMatch, setEditingMatch] = useState<MatchEntry | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'diary' | 'stats' | 'calendar' | 'profile' | 'groups' | 'teamMatches' | 'venues'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'diary' | 'calendar' | 'profile' | 'groups' | 'teamMatches' | 'venues'>('dashboard');
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [profileSaveSuccess, setProfileSaveSuccess] = useState(false);
@@ -477,7 +477,7 @@ export default function App() {
         <nav className="flex-1 px-2 md:px-4 flex flex-col gap-2 mt-8">
           <NavItem 
             icon={LayoutDashboard} 
-            label="Dashboard" 
+            label="Inicio" 
             active={activeTab === 'dashboard'} 
             onClick={() => setActiveTab('dashboard')} 
           />
@@ -492,12 +492,6 @@ export default function App() {
             label="Diario" 
             active={activeTab === 'diary'} 
             onClick={() => setActiveTab('diary')} 
-          />
-          <NavItem 
-            icon={TrendingUp} 
-            label="Análisis" 
-            active={activeTab === 'stats'} 
-            onClick={() => setActiveTab('stats')} 
           />
           <NavItem icon={Users} label="Grupos" active={activeTab === 'groups'} onClick={() => setActiveTab('groups')} />
           <NavItem icon={Swords} label="Partidos" active={activeTab === 'teamMatches'} onClick={() => setActiveTab('teamMatches')} />
@@ -520,7 +514,7 @@ export default function App() {
             <button 
               onClick={logout}
               className="p-2 text-[#8B949E] hover:text-[#f85149] transition-colors"
-              title="Logout"
+              title="Cerrar sesión"
             >
               <LogOut className="w-4 h-4" />
             </button>
@@ -535,19 +529,19 @@ export default function App() {
         <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12 border-b border-[#30363D] pb-10">
           <div>
             <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tighter mb-2 text-white font-display">
-              {activeTab === 'dashboard' ? 'Overview' : activeTab === 'diary' ? 'Match Diary' : activeTab === 'calendar' ? 'Calendario' : activeTab === 'profile' ? 'Perfil' : activeTab === 'groups' ? 'Grupos' : activeTab === 'teamMatches' ? 'Partidos' : activeTab === 'venues' ? 'Canchas' : 'Analytics'}
+              {activeTab === 'dashboard' ? 'Inicio' : activeTab === 'diary' ? 'Diario de partidos' : activeTab === 'calendar' ? 'Calendario' : activeTab === 'profile' ? 'Perfil' : activeTab === 'groups' ? 'Grupos' : activeTab === 'teamMatches' ? 'Partidos' : activeTab === 'venues' ? 'Canchas' : 'Inicio'}
             </h2>
             <p className="text-[#8B949E] font-mono text-[10px] uppercase tracking-[0.2em]">
               Temporada 2026 • {matches.length} partidos jugados
             </p>
           </div>
-          <button 
+          {(['dashboard','diary','calendar'].includes(activeTab)) && <button 
             onClick={handleOpenAddModal}
             className="flex items-center justify-center gap-2 px-6 py-3 bg-[#238636] text-white rounded-lg font-bold hover:bg-[#2ea043] transition-all shadow-lg shadow-[#238636]/20 active:translate-y-px border border-[#238636]/30"
           >
             <Plus className="w-5 h-5" />
-            <span>Registrar Partido</span>
-          </button>
+            <span>Registrar partido</span>
+          </button>}
         </header>
 
         <AnimatePresence mode="wait">
@@ -562,7 +556,7 @@ export default function App() {
               exit={{ opacity: 0, y: -20 }}
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
             >
-              <MetricCard title="Promedio Rating" value={(stats.avgRating / (stats.totalMatches || 1)).toFixed(1)} icon={TrendingUp} colorClass="text-[#238636]" />
+              <MetricCard title="Calificación promedio" value={(stats.avgRating / (stats.totalMatches || 1)).toFixed(1)} icon={TrendingUp} colorClass="text-[#238636]" />
               <MetricCard title="Goles Totales" value={stats.totalGoals} icon={Trophy} />
               <MetricCard title="Asistencias" value={stats.totalAssists} icon={UserIcon} />
               <MetricCard title="Partidos" value={stats.totalMatches} icon={Calendar} />
@@ -607,7 +601,7 @@ export default function App() {
                 </div>
 
                 <div className="bg-[#161B22] border border-[#30363D] p-6 rounded-xl flex flex-col">
-                  <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#8B949E] mb-8">Record de Resultados</h3>
+                  <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#8B949E] mb-8">Historial de resultados</h3>
                   <div className="flex-1 flex flex-col justify-center gap-6">
                     <ResultBar label="Victorias" count={stats.wins} total={stats.totalMatches} color="emerald" />
                     <ResultBar label="Empates" count={stats.draws} total={stats.totalMatches} color="amber" />
@@ -671,7 +665,7 @@ export default function App() {
                         />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[9px] font-mono text-[#8B949E] uppercase">Rating Mín.</label>
+                        <label className="text-[9px] font-mono text-[#8B949E] uppercase">Calificación mín.</label>
                         <input 
                           type="number" min="0" max="10" step="0.5" value={filters.minRating} 
                           onChange={e => setFilters({...filters, minRating: Number(e.target.value)})}
@@ -879,51 +873,6 @@ export default function App() {
             </motion.div>
           )}
 
-          {activeTab === 'stats' && (
-             <motion.div 
-               key="stats"
-               initial={{ opacity: 0, y: 20 }}
-               animate={{ opacity: 1, y: 0 }}
-               exit={{ opacity: 0, y: -20 }}
-               className="grid grid-cols-1 lg:grid-cols-2 gap-8"
-             >
-               <div className="bg-[#161B22] border border-[#30363D] p-8 rounded-xl shadow-sm">
-                  <h3 className="text-sm font-semibold uppercase tracking-widest text-[#8B949E] mb-6">Aportación Ofensiva</h3>
-                  <div className="h-[300px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={chartData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#30363D" vertical={false} />
-                        <XAxis dataKey="date" stroke="#8B949E" fontSize={10} tickLine={false} axisLine={false} dy={10} />
-                        <YAxis stroke="#8B949E" fontSize={10} tickLine={false} axisLine={false} />
-                        <Tooltip 
-                          cursor={{ fill: '#0D1117' }}
-                          contentStyle={{ background: '#0D1117', border: '1px solid #30363D', borderRadius: '8px', fontSize: '10px' }}
-                        />
-                        <Bar dataKey="goals" fill="#238636" radius={[2, 2, 0, 0]} name="Goles" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-               </div>
-
-               <div className="bg-[#161B22] border border-[#30363D] p-8 rounded-xl shadow-sm">
-                  <h3 className="text-sm font-semibold uppercase tracking-widest text-[#8B949E] mb-6">Resumen de Disciplina</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-4 bg-[#0A0C10] rounded-xl border border-[#30363D] text-center">
-                      <p className="text-[#8B949E] text-[10px] uppercase font-mono mb-2">Amarillas</p>
-                      <p className="text-3xl font-bold text-[#d29922]">{matches.reduce((acc, m) => acc + (m.yellowCards || 0), 0)}</p>
-                    </div>
-                    <div className="p-4 bg-[#0A0C10] rounded-xl border border-[#30363D] text-center">
-                      <p className="text-[#8B949E] text-[10px] uppercase font-mono mb-2">Rojas</p>
-                      <p className="text-3xl font-bold text-[#f85149]">{matches.reduce((acc, m) => acc + (m.redCards || 0), 0)}</p>
-                    </div>
-                    <div className="p-4 bg-[#0A0C10] rounded-xl border border-[#30363D] text-center col-span-2">
-                       <p className="text-[#8B949E] text-[10px] uppercase font-mono mb-2">Lesiones Reportadas</p>
-                       <p className="text-3xl font-bold text-[#E1E4E8]">{matches.filter(m => m.injury).length}</p>
-                    </div>
-                  </div>
-               </div>
-             </motion.div>
-          )}
           {activeTab === 'profile' && profile && (
             <motion.div 
               key="profile"
@@ -937,7 +886,7 @@ export default function App() {
                   <div className="flex flex-col sm:flex-row items-center gap-6">
                     <div className="w-24 h-24 rounded-full border-4 border-[#30363D] overflow-hidden bg-[#0A0C10] flex-shrink-0">
                       {profile.photoURL ? (
-                        <img src={profile.photoURL} alt="Profile" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                        <img src={profile.photoURL} alt="Perfil" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-[#8B949E]">
                           <UserIcon className="w-12 h-12" />
@@ -1108,7 +1057,7 @@ export default function App() {
 
                   <div className="space-y-2">
                     <label className="text-[10px] font-mono text-[#8B949E] uppercase tracking-widest flex justify-between">
-                      <span>Rating Personal</span>
+                      <span>Calificación personal</span>
                       <span className="text-[#238636] font-bold">{formData.rating}</span>
                     </label>
                     <input 
