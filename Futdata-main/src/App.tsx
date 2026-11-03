@@ -208,11 +208,27 @@ export default function App() {
       if (!u) { setLoading(false); return; }
       setLoading(true);
 
+const isGooglePlayer = u.providerData.some(
+  p => p.providerId === 'google.com'
+);
+
+if (isGooglePlayer) {
+  setProfile({
+    uid: u.uid,
+    displayName: u.displayName || 'Jugador',
+    email: u.email || '',
+    photoURL: u.photoURL || '',
+    positions: [],
+    myTeams: [],
+    favoriteTeam: '',
+    birthDate: ''
+  } as UserProfile);
+}
+
       try {
         const typeRef = doc(db, 'accountTypes', u.uid);
         let typeSnap = await getDoc(typeRef);
-        // Solo las cuentas de jugadores de Google pueden darse de alta automáticamente.
-        // La cuenta de complejo se provisiona manualmente desde Firebase por el administrador.
+  
         if (!typeSnap.exists()) {
           const isGooglePlayer = u.providerData.some(p => p.providerId === 'google.com');
           if (!isGooglePlayer) {
