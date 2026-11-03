@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { auth, db, loginWithGoogle, logout } from './lib/firebase';
+import { auth, db, loginWithGoogle, logout, loginComplexAccount } from './lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { 
   collection, 
@@ -17,10 +17,11 @@ import {
   doc, 
   getDoc,
   setDoc,
-  Timestamp
+  Timestamp,
+  where
 } from 'firebase/firestore';
 import { 
-  Users, MapPin, Swords,
+  Users, MapPin, Swords, Building2,
   Trophy, 
   Calendar, 
   History as HistoryIcon, 
@@ -148,7 +149,16 @@ function MatchCard({ match, onDelete, onEdit }: { match: MatchEntry, onDelete: (
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [accountType, setAccountType] = useState<'player' | 'complex' | null>(null);
+  const [loginMode, setLoginMode] = useState<'choose' | 'complex'>('choose');
+  const [complexEmail, setComplexEmail] = useState('');
+  const [complexPassword, setComplexPassword] = useState('');
+  const [complexPasswordConfirm, setComplexPasswordConfirm] = useState('');
+  const [complexRegisterMode, setComplexRegisterMode] = useState(false);
+  const [authError, setAuthError] = useState('');
+  const [authBusy, setAuthBusy] = useState(false);
   const [matches, setMatches] = useState<MatchEntry[]>([]);
+  const [venueBookings, setVenueBookings] = useState<any[]>([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingMatch, setEditingMatch] = useState<MatchEntry | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -190,24 +200,52 @@ export default function App() {
   const [formData, setFormData] = useState(INITIAL_FORM_STATE);
 
   useEffect(() => {
-    let unsubscribeMatches: (() => void) | null = null;
+    let unsubscribeData: (() => void) | null = null;
+    let cancelled = false;
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (u) => {
       setUser(u);
-      
-      if (unsubscribeMatches) {
-        unsubscribeMatches();
-        unsubscribeMatches = null;
-      }
+      setProfile(null);
+      setMatches([]);
+      setVenueBookings([]);
+      setAccountType(null);
+      if (unsubscribeData) { unsubscribeData(); unsubscribeData = null; }
 
-      if (u) {
+      if (!u) { setLoading(false); return; }
+      setLoading(true);
+
+      try {
+        const typeRef = doc(db, 'accountTypes', u.uid);
+        let typeSnap = await getDoc(typeRef);
+        // Solo las cuentas de jugadores de Google pueden darse de alta automáticamente.
+        // La cuenta de complejo se provisiona manualmente desde Firebase por el administrador.
+        if (!typeSnap.exists()) {
+          const isGooglePlayer = u.providerData.some(p => p.providerId === 'google.com');
+          if (!isGooglePlayer) {
+            await logout();
+            setAuthError('Esta cuenta no está habilitada para administrar complejos. Contactá al administrador de FutData.');
+            setLoading(false);
+            return;
+          }
+          await setDoc(typeRef, { role: 'player', email: u.email || '', createdAt: serverTimestamp() });
+          typeSnap = await getDoc(typeRef);
+        }
+        const role = typeSnap.data()?.role === 'complex' ? 'complex' : 'player';
+        if (cancelled) return;
+        setAccountType(role);
+
+        if (role === 'complex') {
+          setLoading(false);
+          return;
+        }
+
         try {
           const userRef = doc(db, 'users', u.uid);
           const userDoc = await getDoc(userRef);
           if (!userDoc.exists()) {
             const newProfile = {
               uid: u.uid,
-              displayName: u.displayName || 'Player',
+              displayName: u.displayName || 'Jugador',
               email: u.email || '',
               photoURL: u.photoURL || '',
               createdAt: serverTimestamp()
@@ -218,37 +256,34 @@ export default function App() {
             setProfile({ uid: u.uid, ...userDoc.data() } as UserProfile);
           }
         } catch (err) {
-          console.error("User initialization error:", err);
-          // Don't throw here to avoid hanging the app
+          console.error('Error al inicializar el perfil:', err);
         }
 
-        const matchesQuery = query(
-          collection(db, 'users', u.uid, 'matches'),
-          orderBy('date', 'desc')
-        );
-
-        unsubscribeMatches = onSnapshot(matchesQuery, (snapshot) => {
-          const m = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as MatchEntry));
-          setMatches(m);
+        const matchesQuery = query(collection(db, 'users', u.uid, 'matches'), orderBy('date', 'desc'));
+        const stopMatches = onSnapshot(matchesQuery, (snapshot) => {
+          setMatches(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as MatchEntry)));
           setLoading(false);
         }, (err) => {
           handleFirestoreError(err, OperationType.LIST, `users/${u.uid}/matches`);
           setLoading(false);
         });
-      } else {
-        setMatches([]);
+        const bookingsQuery = query(collection(db, 'bookings'), where('participantIds', 'array-contains', u.uid));
+        const stopBookings = onSnapshot(bookingsQuery, (snapshot) => {
+          setVenueBookings(snapshot.docs.map(d => ({ id: d.id, ...d.data() })).filter((b:any) => b.status !== 'cancelled'));
+        }, (err) => console.error('No se pudieron cargar las reservas del calendario:', err));
+        unsubscribeData = () => { stopMatches(); stopBookings(); };
+      } catch (err) {
+        console.error('No se pudo determinar el tipo de cuenta:', err);
+        setAuthError('No se pudo verificar el tipo de cuenta. Revisá las reglas de Firestore.');
         setLoading(false);
       }
     });
 
-    // Fallback timer to ensure loading screen doesn't hang forever
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 5000);
-
+    const timer = setTimeout(() => setLoading(false), 7000);
     return () => {
+      cancelled = true;
       unsubscribeAuth();
-      if (unsubscribeMatches) unsubscribeMatches();
+      if (unsubscribeData) unsubscribeData();
       clearTimeout(timer);
     };
   }, []);
@@ -441,27 +476,60 @@ export default function App() {
   }
 
   if (!user) {
+    const authInput = 'w-full bg-[#0D1117] border border-[#30363D] rounded-xl px-4 py-3 text-white outline-none focus:border-[#238636]';
+    async function handleComplexAuth() {
+      setAuthBusy(true); setAuthError('');
+      try {
+        if (complexEmail.trim().toLowerCase() !== 'complejo') {
+          throw new Error('El usuario de acceso es Complejo.');
+        }
+        if (!complexPassword) throw new Error('Ingresá la contraseña.');
+        await loginComplexAccount('complejo@futdata.com', complexPassword);
+      } catch (err: any) {
+        const code = err?.code || '';
+        setAuthError(
+          code === 'auth/invalid-credential' || code === 'auth/user-not-found'
+            ? 'La cuenta de complejos todavía no está creada en Firebase. Revisá la guía de configuración.'
+            : code === 'auth/operation-not-allowed'
+              ? 'Firebase todavía no tiene habilitado el acceso con correo y contraseña.'
+              : err?.message || 'No se pudo ingresar.'
+        );
+      } finally { setAuthBusy(false); }
+    }
     return (
       <div className="min-h-screen bg-[#0A0C10] flex flex-col items-center justify-center p-6 text-center">
-        <motion.h1 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-[15vw] leading-[0.82] font-black uppercase tracking-tighter text-[#161B22] mb-8 select-none"
-        >
-          FutData
-        </motion.h1>
-        <p className="text-[#8B949E] max-w-md mb-12 text-lg">
-          Tu diario de fútbol definitivo. Registra partidos, analiza estadísticas y mejora tu rendimiento.
-        </p>
-        <button 
-          onClick={loginWithGoogle}
-          className="flex items-center gap-3 px-8 py-4 bg-[#E1E4E8] text-[#0A0C10] rounded-full font-bold hover:bg-white transition-all transform hover:scale-105 active:scale-95 shadow-xl shadow-white/5"
-        >
-          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
-          Ingresar con Google
-        </button>
+        <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-[15vw] leading-[0.82] font-black uppercase tracking-tighter text-[#161B22] mb-6 select-none">FutData</motion.h1>
+        <p className="text-[#8B949E] max-w-xl mb-10 text-lg">Una plataforma para organizar partidos, administrar complejos y conectar jugadores.</p>
+        {loginMode === 'choose' ? <div className="grid sm:grid-cols-2 gap-4 w-full max-w-2xl text-left">
+          <button onClick={async()=>{try{setAuthError('');await loginWithGoogle()}catch(e:any){setAuthError(e.message||'No se pudo ingresar con Google.')}}} className="bg-[#161B22] border border-[#30363D] hover:border-[#238636] rounded-2xl p-6 text-left transition-colors">
+            <div className="w-12 h-12 rounded-xl bg-[#0D1117] flex items-center justify-center mb-4"><Users className="text-[#7ee2a3]"/></div><h2 className="text-xl font-black mb-2">Soy jugador</h2><p className="text-sm text-[#8B949E] mb-5">Grupos, partidos, estadísticas y reservas de canchas.</p><span className="inline-flex items-center gap-2 font-bold text-sm">Ingresar con Google <span>→</span></span>
+          </button>
+          <button onClick={()=>{setLoginMode('complex');setAuthError('')}} className="bg-[#161B22] border border-[#30363D] hover:border-[#238636] rounded-2xl p-6 text-left transition-colors">
+            <div className="w-12 h-12 rounded-xl bg-[#0D1117] flex items-center justify-center mb-4"><Building2 className="text-[#7ee2a3]"/></div><h2 className="text-xl font-black mb-2">Acceso de complejos</h2><p className="text-sm text-[#8B949E] mb-5">Agenda, canchas, reservas manuales y reservas online.</p><span className="inline-flex items-center gap-2 font-bold text-sm">Ingresar al panel <span>→</span></span>
+          </button>
+        </div> : <div className="w-full max-w-md bg-[#161B22] border border-[#30363D] rounded-2xl p-6 text-left space-y-4">
+          <button className="text-sm text-[#7ee2a3]" onClick={()=>{setLoginMode('choose');setAuthError('')}}>← Volver</button>
+          <div><h2 className="text-2xl font-black">Acceso de complejos</h2><p className="text-sm text-[#8B949E] mt-1">Ingresá con las credenciales habilitadas por FutData.</p></div>
+          <input className={authInput} type="text" autoComplete="username" placeholder="Usuario" value={complexEmail} onChange={e=>setComplexEmail(e.target.value)}/>
+          <input className={authInput} type="password" autoComplete="current-password" placeholder="Contraseña" value={complexPassword} onChange={e=>setComplexPassword(e.target.value)}/>
+          {authError&&<p className="text-sm text-[#f85149]" role="alert">{authError}</p>}
+          <button disabled={authBusy} onClick={handleComplexAuth} className="w-full bg-[#238636] hover:bg-[#2ea043] disabled:opacity-50 rounded-xl py-3 font-bold">{authBusy?'Ingresando...':'Ingresar'}</button>
+          <p className="text-xs text-[#8B949E]">Las cuentas de complejos son creadas y habilitadas exclusivamente por FutData.</p>
+        </div>}
+        {authError&&loginMode==='choose'&&<p className="text-sm text-[#f85149] mt-5">{authError}</p>}
       </div>
     );
+  }
+
+  if (accountType === 'complex') {
+    return <div className="min-h-screen bg-[#0A0C10] text-[#E1E4E8] flex font-sans">
+      <aside className="w-16 md:w-64 border-r border-[#30363D] flex flex-col fixed h-full bg-[#161B22] z-20">
+        <div className="p-4 md:p-6 flex items-center"><div className="w-10 h-10 bg-[#238636] rounded-xl flex items-center justify-center font-black text-xl">F</div><span className="ml-3 text-xl font-black uppercase tracking-tight hidden md:block">FutData <span className="text-[#7ee2a3]">Complejos</span></span></div>
+        <nav className="flex-1 px-3 mt-8"><div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-[#238636]/15 text-[#7ee2a3]"><Building2 size={19}/><span className="hidden md:block font-bold text-sm">Agenda del complejo</span></div></nav>
+        <div className="p-4 border-t border-[#30363D]"><p className="text-xs text-[#8B949E] truncate hidden md:block mb-3">{user.email}</p><button onClick={logout} className="flex items-center gap-2 text-sm text-[#8B949E] hover:text-red-400"><LogOut size={16}/><span className="hidden md:block">Cerrar sesión</span></button></div>
+      </aside>
+      <main className="flex-1 ml-16 md:ml-64 p-4 sm:p-6 md:p-10"><header className="mb-8 border-b border-[#30363D] pb-6"><p className="text-xs uppercase tracking-[0.2em] text-[#7ee2a3] font-mono mb-2">Portal de establecimientos</p><h1 className="text-4xl md:text-5xl font-black uppercase tracking-tight">Agenda del complejo</h1><p className="text-[#8B949E] mt-2">Administrá tus canchas y todos los turnos desde un solo lugar.</p></header><Venues user={user} mode="owner"/></main>
+    </div>;
   }
 
   return (
@@ -547,7 +615,7 @@ export default function App() {
         <AnimatePresence mode="wait">
           {activeTab === 'groups' && <Groups user={user} />}
           {activeTab === 'teamMatches' && <TeamMatches user={user} />}
-          {activeTab === 'venues' && <Venues />}
+          {activeTab === 'venues' && <Venues user={user} />}
           {activeTab === 'dashboard' && (
             <motion.div 
               key="dashboard"
@@ -818,6 +886,7 @@ export default function App() {
                           const mDate = m.date instanceof Timestamp ? m.date.toDate() : m.date;
                           return isSameDay(mDate, day);
                         });
+                        const dayBookings = venueBookings.filter((b:any) => b.date === format(day, 'yyyy-MM-dd'));
 
                         const isCurrentMonth = isSameMonth(day, monthStart);
                         const isToday = isSameDay(day, new Date());
@@ -846,6 +915,11 @@ export default function App() {
                                   </button>
                                 );
                               })}
+                              {dayBookings.map((b:any) => (
+                                <div key={b.id} className="w-full text-left p-1 rounded text-[9px] font-bold text-white bg-[#238636] truncate shadow-sm" title={`${b.format} · ${b.complexName} · ${b.courtName}`}>
+                                  {b.startTime} · {b.format} · {b.complexName}
+                                </div>
+                              ))}
                             </div>
                           </div>
                         );

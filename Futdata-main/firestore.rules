@@ -1,105 +1,146 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // 0. Global Safety Net
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // Helper functions
-    function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
-    }
-    
     function isSignedIn() {
       return request.auth != null && request.auth.token.email_verified == true;
     }
-    
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
-
-    function incoming() {
-      return request.resource.data;
+    // La cuenta de complejo es provisionada manualmente por FutData en Firebase.
+    // No requiere email verificado porque usa una credencial interna de demostración.
+    function isComplexAccount() {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/accountTypes/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/accountTypes/$(request.auth.uid)).data.role == 'complex';
+    }
+    function isPlayerAccount() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/accountTypes/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/accountTypes/$(request.auth.uid)).data.role == 'player';
     }
 
-    function existing() {
-      return resource.data;
+    match /accountTypes/{userId} {
+      allow get: if request.auth != null && request.auth.uid == userId;
+      // Solo los usuarios que ingresan con Google pueden crear su propio tipo player.
+      // Las cuentas complex se crean manualmente desde Firebase por el administrador.
+      allow create: if request.auth != null && request.auth.uid == userId &&
+        request.auth.token.firebase.sign_in_provider == 'google.com' &&
+        request.resource.data.keys().hasOnly(['role', 'email', 'createdAt']) &&
+        request.resource.data.role == 'player' &&
+        request.resource.data.email is string;
+      // El tipo de cuenta no se puede cambiar desde el cliente.
+      allow update, delete, list: if false;
     }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
 
-    // Validation for User
     function isValidUser(data) {
       return data.displayName is string && data.displayName.size() <= 100 &&
-             data.email is string && data.email.size() <= 100 &&
-             (data.get('photoURL', null) == null || (data.get('photoURL', null) is string && data.get('photoURL', null).size() <= 1000)) &&
-             (data.get('birthDate', null) == null || (data.get('birthDate', null) is string && data.get('birthDate', null).size() <= 20)) &&
-             (data.get('favoriteTeam', null) == null || (data.get('favoriteTeam', null) is string && data.get('favoriteTeam', null).size() <= 100)) &&
-             (data.get('positions', null) == null || (data.get('positions', null) is list && data.get('positions', null).size() <= 20)) &&
-             (data.get('myTeams', null) == null || (data.get('myTeams', null) is list && data.get('myTeams', null).size() <= 20)) &&
-             (data.get('uid', null) == null || (data.get('uid', null) is string && data.get('uid', null).size() <= 128));
+        data.email is string && data.email.size() <= 100 &&
+        (data.get('photoURL', null) == null || (data.get('photoURL', null) is string && data.get('photoURL', null).size() <= 1000)) &&
+        (data.get('birthDate', null) == null || (data.get('birthDate', null) is string && data.get('birthDate', null).size() <= 20)) &&
+        (data.get('favoriteTeam', null) == null || (data.get('favoriteTeam', null) is string && data.get('favoriteTeam', null).size() <= 100)) &&
+        (data.get('positions', null) == null || (data.get('positions', null) is list && data.get('positions', null).size() <= 20)) &&
+        (data.get('myTeams', null) == null || (data.get('myTeams', null) is list && data.get('myTeams', null).size() <= 20)) &&
+        (data.get('uid', null) == null || (data.get('uid', null) is string && data.get('uid', null).size() <= 128));
     }
-
-    // Validation for Match
     function isValidMatch(data) {
-      return data.date is timestamp &&
-             data.goals is int && data.goals >= 0 && data.goals < 100 &&
-             data.assists is int && data.assists >= 0 && data.assists < 100 &&
-             data.rating is number && data.rating >= 0 && data.rating <= 10 &&
-             data.userId == request.auth.uid &&
-             (data.notes == null || (data.notes is string && data.notes.size() <= 1000));
+      return data.date is timestamp && data.goals is int && data.goals >= 0 && data.goals < 100 &&
+        data.assists is int && data.assists >= 0 && data.assists < 100 &&
+        data.rating is number && data.rating >= 0 && data.rating <= 10 &&
+        data.userId == request.auth.uid &&
+        (data.notes == null || (data.notes is string && data.notes.size() <= 1000));
     }
 
-    // Group roster and match history are owner-only until secure invitation flows exist.
+    // Grupos: privados para su creador hasta implementar invitaciones seguras.
     function validGroup(data) {
-      return data.ownerId == request.auth.uid &&
-             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
-             data.players is list && data.players.size() <= 100 &&
-             data.games is list && data.games.size() <= 100;
+      return data.ownerId == request.auth.uid && data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+        data.players is list && data.players.size() <= 100 && data.games is list && data.games.size() <= 100;
     }
-
     match /groups/{groupId} {
-      allow get, list: if isSignedIn() && resource.data.ownerId == request.auth.uid;
-      allow create: if isSignedIn() && validGroup(incoming());
-      allow update: if isSignedIn() && existing().ownerId == request.auth.uid && validGroup(incoming());
-      allow delete: if isSignedIn() && existing().ownerId == request.auth.uid;
+      allow get, list: if isPlayerAccount() && resource.data.ownerId == request.auth.uid;
+      allow create: if isPlayerAccount() && validGroup(incoming());
+      allow update: if isPlayerAccount() && existing().ownerId == request.auth.uid && validGroup(incoming());
+      allow delete: if isPlayerAccount() && existing().ownerId == request.auth.uid;
     }
 
     function validListing(data) {
-      return data.ownerId == request.auth.uid &&
-             data.team is string && data.team.size() > 0 && data.team.size() <= 100 &&
-             data.zone is string && data.zone.size() > 0 && data.zone.size() <= 100 &&
-             data.date is string && data.date.size() <= 30 &&
-             data.format in [5,6,7,8,11] && data.style in ['Amistoso','Competitivo'] &&
-             data.description is string && data.description.size() <= 500 &&
-             data.status in ['open','closed'];
+      return data.ownerId == request.auth.uid && data.team is string && data.team.size() > 0 && data.team.size() <= 100 &&
+        data.zone is string && data.zone.size() > 0 && data.zone.size() <= 100 && data.date is string && data.date.size() <= 30 &&
+        data.format in [5,6,7,8,11] && data.style in ['Amistoso','Competitivo'] &&
+        data.description is string && data.description.size() <= 500 && data.status in ['open','closed'];
     }
     match /teamListings/{listingId} {
-      allow get, list: if isSignedIn();
-      allow create: if isSignedIn() && validListing(incoming());
-      allow update: if isSignedIn() && existing().ownerId == request.auth.uid &&
-                    validListing(incoming()) && incoming().ownerId == existing().ownerId;
-      allow delete: if isSignedIn() && existing().ownerId == request.auth.uid;
+      allow get, list: if isPlayerAccount();
+      allow create: if isPlayerAccount() && validListing(incoming());
+      allow update: if isPlayerAccount() && existing().ownerId == request.auth.uid && validListing(incoming()) && incoming().ownerId == existing().ownerId;
+      allow delete: if isPlayerAccount() && existing().ownerId == request.auth.uid;
     }
 
-    // Routes
+    // Complejos: catálogo visible para usuarios autenticados; edición solo por su titular.
+    match /complexes/{complexId} {
+      allow get, list: if isSignedIn() || isComplexAccount();
+      allow create: if isComplexAccount() && incoming().ownerId == request.auth.uid && incoming().name is string && incoming().zone is string && incoming().address is string;
+      allow update: if isComplexAccount() && existing().ownerId == request.auth.uid && incoming().ownerId == request.auth.uid;
+      allow delete: if isComplexAccount() && existing().ownerId == request.auth.uid;
+    }
+    match /courts/{courtId} {
+      allow get, list: if isSignedIn() || isComplexAccount();
+      allow create: if isComplexAccount() && incoming().ownerId == request.auth.uid &&
+        get(/databases/$(database)/documents/complexes/$(incoming().complexId)).data.ownerId == request.auth.uid;
+      allow update, delete: if isComplexAccount() && existing().ownerId == request.auth.uid;
+    }
+
+    // Agenda central: el complejo administra turnos externos; las reservas online las crea el jugador.
+    function bookingOwner() { return isComplexAccount() && resource.data.complexOwnerId == request.auth.uid; }
+    function bookingParticipant() { return isSignedIn() && request.auth.uid in resource.data.participantIds; }
+    match /bookings/{bookingId} {
+      allow get, list: if (isSignedIn() || isComplexAccount()) && (resource.data.complexOwnerId == request.auth.uid || request.auth.uid in resource.data.participantIds);
+      allow create: if (isSignedIn() || isComplexAccount()) && ((incoming().source == 'online' && isPlayerAccount()) || (incoming().source == 'manual' && isComplexAccount())) && incoming().complexId is string && incoming().courtId is string &&
+        incoming().complexOwnerId is string && incoming().date is string && incoming().startTime is string &&
+        incoming().source in ['manual','online'] && incoming().status == 'confirmed' &&
+        ((incoming().source == 'online' && incoming().userId == request.auth.uid && request.auth.uid in incoming().participantIds) ||
+         (incoming().source == 'manual' && isComplexAccount() && incoming().complexOwnerId == request.auth.uid));
+      allow update: if (isSignedIn() || isComplexAccount()) && (bookingOwner() || bookingParticipant()) &&
+        incoming().complexOwnerId == existing().complexOwnerId && incoming().courtId == existing().courtId && incoming().date == existing().date &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['status']);
+      allow delete: if bookingOwner() && isComplexAccount();
+    }
+
+    // Estado mínimo de disponibilidad para mostrar verde/rojo. No expone datos personales.
+    match /availabilitySlots/{slotId} {
+      allow get, list: if isSignedIn() || isComplexAccount();
+      allow create: if (isSignedIn() || isComplexAccount()) && incoming().status == 'occupied' && incoming().complexId is string &&
+        incoming().courtId is string && incoming().date is string && incoming().startTime is string &&
+        ((incoming().source == 'online' && incoming().userId == request.auth.uid &&
+           getAfter(/databases/$(database)/documents/bookings/$(incoming().bookingId)).data.userId == request.auth.uid) ||
+         (incoming().source == 'manual' && incoming().complexOwnerId == request.auth.uid &&
+           getAfter(/databases/$(database)/documents/bookings/$(incoming().bookingId)).data.complexOwnerId == request.auth.uid));
+      allow update: if (isSignedIn() || isComplexAccount()) &&
+        ((isComplexAccount() && existing().complexOwnerId == request.auth.uid) || existing().userId == request.auth.uid || existing().status == 'cancelled') &&
+        incoming().complexId == existing().complexId && incoming().courtId == existing().courtId &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['status','updatedAt','bookingId','source','userId']);
+      allow delete: if isComplexAccount() && existing().complexOwnerId == request.auth.uid;
+    }
+
     match /users/{userId} {
-      allow get: if isSignedIn();
-      allow list: if false; // Users shouldn't be listable by default
-      allow create: if isOwner(userId) && isValidUser(incoming());
-      allow update: if isOwner(userId) && isValidUser(incoming()) && 
-                    incoming().email == existing().email &&
-                    (incoming().get('uid', null) == null || existing().get('uid', null) == null || incoming().uid == existing().uid);
+      allow get: if isPlayerAccount();
+      allow list: if false;
+      allow create: if isOwner(userId) && isPlayerAccount() && isValidUser(incoming());
+      allow update: if isOwner(userId) && isPlayerAccount() && isValidUser(incoming()) && incoming().email == existing().email &&
+        (incoming().get('uid', null) == null || existing().get('uid', null) == null || incoming().uid == existing().uid);
     }
-
     match /users/{userId}/matches/{matchId} {
-      allow list: if isOwner(userId);
-      allow get: if isOwner(userId);
-      allow create: if isOwner(userId) && isValidMatch(incoming()) && incoming().createdAt == request.time;
-      allow update: if isOwner(userId) && isValidMatch(incoming()) && 
-                    incoming().userId == existing().userId &&
-                    incoming().createdAt == existing().createdAt &&
-                    incoming().updatedAt == request.time;
-      allow delete: if isOwner(userId);
+      allow list, get: if isOwner(userId) && isPlayerAccount();
+      allow create: if isOwner(userId) && isPlayerAccount() && isValidMatch(incoming()) && incoming().createdAt == request.time;
+      allow update: if isOwner(userId) && isPlayerAccount() && isValidMatch(incoming()) && incoming().userId == existing().userId &&
+        incoming().createdAt == existing().createdAt && incoming().updatedAt == request.time;
+      allow delete: if isOwner(userId) && isPlayerAccount();
     }
   }
 }
