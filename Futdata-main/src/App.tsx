@@ -508,7 +508,7 @@ if (isGooglePlayer) {
           throw new Error('El usuario de acceso es Complejo.');
         }
         if (!complexPassword) throw new Error('Ingresá la contraseña.');
-        await loginComplexAccount('complejo@futdata.com', complexPassword);
+        await loginComplexAccount('complejofd@gmail.com', complexPassword);
       } catch (err: any) {
         const code = err?.code || '';
         setAuthError(
