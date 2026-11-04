@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { auth, db, loginWithGoogle, logout, loginComplexAccount } from './lib/firebase';
-import { onAuthStateChanged, User } from 'firebase/auth';
+import { onAuthStateChanged, sendEmailVerification, User } from 'firebase/auth';
 import { 
   collection, 
   query, 
@@ -226,6 +226,16 @@ if (isGooglePlayer) {
 }
 
       try {
+        if (!isGooglePlayer && !u.emailVerified) {
+          await sendEmailVerification(u);
+          await logout();
+          if (!cancelled) {
+            setAuthError('Tu cuenta todavía no verificó el correo. Te enviamos un enlace a complejofd@gmail.com. Abrilo y después volvé a ingresar.');
+            setLoading(false);
+          }
+          return;
+        }
+
         const typeRef = doc(db, 'accountTypes', u.uid);
         let typeSnap = await getDoc(typeRef);
   
@@ -512,9 +522,11 @@ if (isGooglePlayer) {
       } catch (err: any) {
         const code = err?.code || '';
         setAuthError(
-          code === 'auth/invalid-credential' || code === 'auth/user-not-found'
-            ? 'La cuenta de complejos todavía no está creada en Firebase. Revisá la guía de configuración.'
-            : code === 'auth/operation-not-allowed'
+          code === 'auth/invalid-credential' || code === 'auth/wrong-password'
+            ? 'El usuario o la contraseña son incorrectos. Revisá la contraseña de complejofd@gmail.com.'
+            : code === 'auth/user-not-found'
+              ? 'No existe la cuenta complejofd@gmail.com en Firebase Authentication.'
+              : code === 'auth/operation-not-allowed'
               ? 'Firebase todavía no tiene habilitado el acceso con correo y contraseña.'
               : err?.message || 'No se pudo ingresar.'
         );
