@@ -4,8 +4,8 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { auth, db, loginWithGoogle, logout, loginComplexAccount } from './lib/firebase';
-import { onAuthStateChanged, sendEmailVerification, User } from 'firebase/auth';
+import { auth, db, loginWithGoogle, logout, loginComplexAccount, sendComplexPasswordReset } from './lib/firebase';
+import { onAuthStateChanged, User } from 'firebase/auth';
 import { 
   collection, 
   query, 
@@ -150,6 +150,7 @@ export default function App() {
   const [complexPasswordConfirm, setComplexPasswordConfirm] = useState('');
   const [complexRegisterMode, setComplexRegisterMode] = useState(false);
   const [authError, setAuthError] = useState('');
+  const [authNotice, setAuthNotice] = useState('');
   const [authBusy, setAuthBusy] = useState(false);
   const [matches, setMatches] = useState<MatchEntry[]>([]);
   const [venueBookings, setVenueBookings] = useState<any[]>([]);
@@ -226,16 +227,6 @@ if (isGooglePlayer) {
 }
 
       try {
-        if (!isGooglePlayer && !u.emailVerified) {
-          await sendEmailVerification(u);
-          await logout();
-          if (!cancelled) {
-            setAuthError('Tu cuenta todavía no verificó el correo. Te enviamos un enlace a complejofd@gmail.com. Abrilo y después volvé a ingresar.');
-            setLoading(false);
-          }
-          return;
-        }
-
         const typeRef = doc(db, 'accountTypes', u.uid);
         let typeSnap = await getDoc(typeRef);
   
@@ -512,7 +503,7 @@ if (isGooglePlayer) {
   if (!user) {
     const authInput = 'w-full bg-[#0D1117] border border-[#30363D] rounded-xl px-4 py-3 text-white outline-none focus:border-[#238636]';
     async function handleComplexAuth() {
-      setAuthBusy(true); setAuthError('');
+      setAuthBusy(true); setAuthError(''); setAuthNotice('');
       try {
         if (complexEmail.trim().toLowerCase() !== 'complejo') {
           throw new Error('El usuario de acceso es Complejo.');
@@ -521,14 +512,17 @@ if (isGooglePlayer) {
         await loginComplexAccount('complejofd@gmail.com', complexPassword);
       } catch (err: any) {
         const code = err?.code || '';
+        console.error('[FutData] Error al iniciar sesión del complejo:', code, err);
         setAuthError(
           code === 'auth/invalid-credential' || code === 'auth/wrong-password'
-            ? 'El usuario o la contraseña son incorrectos. Revisá la contraseña de complejofd@gmail.com.'
+            ? 'La cuenta existe, pero Firebase rechazó la contraseña. Usá “Recuperar contraseña” para establecer una nueva.'
             : code === 'auth/user-not-found'
-              ? 'No existe la cuenta complejofd@gmail.com en Firebase Authentication.'
+              ? 'No se encontró complejofd@gmail.com en el proyecto Firebase conectado a esta aplicación.'
               : code === 'auth/operation-not-allowed'
-              ? 'Firebase todavía no tiene habilitado el acceso con correo y contraseña.'
-              : err?.message || 'No se pudo ingresar.'
+                ? 'Está deshabilitado el proveedor Correo electrónico/Contraseña en Firebase Authentication.'
+                : code === 'auth/too-many-requests'
+                  ? 'Firebase bloqueó temporalmente los intentos. Esperá unos minutos y volvé a probar.'
+                  : err?.message || 'No se pudo ingresar.'
         );
       } finally { setAuthBusy(false); }
     }
@@ -579,7 +573,9 @@ if (isGooglePlayer) {
             <input className={authInput} type="text" autoComplete="username" placeholder="Usuario" value={complexEmail} onChange={e => setComplexEmail(e.target.value)} />
             <input className={authInput} type="password" autoComplete="current-password" placeholder="Contraseña" value={complexPassword} onChange={e => setComplexPassword(e.target.value)} />
             {authError && <p className="text-sm text-[#f85149]" role="alert">{authError}</p>}
+            {authNotice && <p className="text-sm text-[#7ee2a3]" role="status">{authNotice}</p>}
             <button disabled={authBusy} onClick={handleComplexAuth} className="w-full bg-[#238636] hover:bg-[#2ea043] disabled:opacity-50 rounded-xl py-3 font-bold">{authBusy ? 'Ingresando...' : 'Ingresar'}</button>
+            <button type="button" disabled={authBusy} onClick={async () => { setAuthError(''); setAuthNotice(''); setAuthBusy(true); try { await sendComplexPasswordReset(); setAuthNotice('Enviamos un enlace para crear una nueva contraseña a complejofd@gmail.com. Revisá también Spam.'); } catch (err: any) { console.error('[FutData] Error al enviar recuperación:', err?.code, err); setAuthError(err?.message || 'No se pudo enviar el correo de recuperación.'); } finally { setAuthBusy(false); } }} className="w-full text-sm text-[#7ee2a3] hover:underline disabled:opacity-50">Recuperar contraseña</button>
             <p className="text-xs text-[#8B949E]">Las cuentas de complejos son creadas y habilitadas exclusivamente por FutData.</p>
           </div>
         )}
