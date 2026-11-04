@@ -68,15 +68,15 @@ import {
 } from 'recharts';
 function MetricCard({ title, value, icon: Icon, colorClass = "text-[#E1E4E8]" }: { title: string, value: string | number, icon: any, colorClass?: string }) {
   return (
-    <div className="bg-[#161B22] border border-[#30363D] p-6 rounded-xl hover:border-[#484f58] transition-colors group">
-      <div className="flex justify-between items-start mb-4">
+    <div className="bg-[#161B22] border border-[#30363D] p-6 rounded-xl hover:border-[#484f58] transition-colors group max-md:p-4">
+      <div className="flex justify-between items-start mb-4 max-md:mb-3">
         <div className="p-2 bg-[#0D1117] rounded-lg group-hover:bg-[#1c2128] transition-colors">
           <Icon className="w-5 h-5 text-[#8B949E]" />
         </div>
       </div>
       <div>
         <p className="text-[#8B949E] text-[10px] font-mono uppercase tracking-widest mb-1">{title}</p>
-        <p className={`text-2xl font-bold tracking-tight ${colorClass}`}>{value}</p>
+        <p className={`text-2xl font-bold tracking-tight max-md:text-xl ${colorClass}`}>{value}</p>
       </div>
     </div>
   );
@@ -124,14 +124,14 @@ function MatchCard({ match, onDelete, onEdit }: { match: MatchEntry, onDelete: (
       <div className="flex items-center gap-2 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100 transition-opacity bg-[#161B22] sm:bg-transparent p-1 rounded-lg self-end sm:self-center">
         <button 
           onClick={() => onEdit(match)}
-          className="p-2 text-[#8B949E] hover:text-[#58A6FF] hover:bg-[#58A6FF]/10 rounded-lg transition-colors"
+          className="p-2 text-[#8B949E] hover:text-[#58A6FF] hover:bg-[#58A6FF]/10 rounded-lg transition-colors max-md:p-2.5"
           title="Edit match"
         >
           <Edit2 className="w-4 h-4" />
         </button>
         <button 
           onClick={() => onDelete(match.id)}
-          className="p-2 text-[#8B949E] hover:text-[#f85149] hover:bg-[#f85149]/10 rounded-lg transition-colors"
+          className="p-2 text-[#8B949E] hover:text-[#f85149] hover:bg-[#f85149]/10 rounded-lg transition-colors max-md:p-2.5"
           title="Delete match"
         >
           <Trash2 className="w-4 h-4" />
@@ -162,6 +162,15 @@ export default function App() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [profileSaveSuccess, setProfileSaveSuccess] = useState(false);
   const [profileSaveError, setProfileSaveError] = useState<string | null>(null);
+  // Día seleccionado en el calendario mobile (solo se usa en pantallas < 768 px)
+  const [selectedDay, setSelectedDay] = useState(new Date());
+
+  // En celulares, al cambiar de sección volvemos arriba (en escritorio no cambia nada).
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches) {
+      window.scrollTo({ top: 0 });
+    }
+  }, [activeTab]);
 
   // Filter State
   const [searchQuery, setSearchQuery] = useState('');
@@ -529,7 +538,7 @@ if (isGooglePlayer) {
     return (
       <div className="min-h-screen bg-[#0A0C10] flex flex-col items-center justify-center p-6 text-center">
         <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-[15vw] leading-[0.82] font-black uppercase tracking-tighter text-[#161B22] mb-6 select-none">FutData</motion.h1>
-        <p className="text-[#8B949E] max-w-xl mb-10 text-lg">Una plataforma para organizar partidos, administrar complejos y conectar jugadores.</p>
+        <p className="text-[#8B949E] max-w-xl mb-10 text-lg max-md:text-base max-md:mb-8">Una plataforma para organizar partidos, administrar complejos y conectar jugadores.</p>
 
         {loginMode === 'choose' ? (
           <div className="w-full max-w-xl flex flex-col items-center">
@@ -542,12 +551,12 @@ if (isGooglePlayer) {
                   setAuthError(e.message || 'No se pudo ingresar con Google.');
                 }
               }}
-              className="w-full max-w-lg bg-[#238636] hover:bg-[#2ea043] border border-[#2ea043] rounded-2xl px-8 py-7 text-left transition-all shadow-xl shadow-[#238636]/15 group"
+              className="w-full max-w-lg bg-[#238636] hover:bg-[#2ea043] border border-[#2ea043] rounded-2xl px-8 py-7 text-left transition-all shadow-xl shadow-[#238636]/15 group max-md:px-5 max-md:py-5"
             >
-              <div className="flex items-center gap-5">
-                <div className="w-14 h-14 shrink-0 rounded-xl bg-white flex items-center justify-center text-[#4285F4] text-2xl font-black">G</div>
-                <div className="flex-1">
-                  <span className="block text-2xl font-black text-white">Ingresar con Google</span>
+              <div className="flex items-center gap-5 max-md:gap-4">
+                <div className="w-14 h-14 shrink-0 rounded-xl bg-white flex items-center justify-center text-[#4285F4] text-2xl font-black max-md:w-12 max-md:h-12">G</div>
+                <div className="flex-1 max-md:min-w-0">
+                  <span className="block text-2xl font-black text-white max-md:text-xl">Ingresar con Google</span>
                   <span className="block text-sm text-white/80 mt-1">Accedé a FutData como jugador</span>
                 </div>
                 <span className="text-3xl text-white group-hover:translate-x-1 transition-transform">→</span>
@@ -560,15 +569,15 @@ if (isGooglePlayer) {
               <p className="text-[10px] uppercase tracking-[0.2em] text-[#6E7681] mb-2">¿Administrás un complejo?</p>
               <button
                 onClick={() => { setLoginMode('complex'); setAuthError(''); }}
-                className="text-xs text-[#8B949E] hover:text-[#7ee2a3] underline underline-offset-4 transition-colors"
+                className="text-xs text-[#8B949E] hover:text-[#7ee2a3] underline underline-offset-4 transition-colors max-md:text-sm max-md:py-2 max-md:px-3"
               >
                 Acceso para complejos
               </button>
             </div>
           </div>
         ) : (
-          <div className="w-full max-w-md bg-[#161B22] border border-[#30363D] rounded-2xl p-6 text-left space-y-4">
-            <button className="text-sm text-[#7ee2a3]" onClick={() => { setLoginMode('choose'); setAuthError(''); }}>← Volver</button>
+          <div className="w-full max-w-md bg-[#161B22] border border-[#30363D] rounded-2xl p-6 text-left space-y-4 max-md:p-5">
+            <button className="text-sm text-[#7ee2a3] max-md:py-2" onClick={() => { setLoginMode('choose'); setAuthError(''); }}>← Volver</button>
             <div><h2 className="text-2xl font-black">Acceso de complejos</h2><p className="text-sm text-[#8B949E] mt-1">Ingresá con las credenciales habilitadas por FutData.</p></div>
             <input className={authInput} type="text" autoComplete="username" placeholder="Usuario" value={complexEmail} onChange={e => setComplexEmail(e.target.value)} />
             <input className={authInput} type="password" autoComplete="current-password" placeholder="Contraseña" value={complexPassword} onChange={e => setComplexPassword(e.target.value)} />
@@ -585,21 +594,46 @@ if (isGooglePlayer) {
   }
 
   if (accountType === 'complex') {
-    return <div className="min-h-screen bg-[#0A0C10] text-[#E1E4E8] flex font-sans">
-      <aside className="w-16 md:w-64 border-r border-[#30363D] flex flex-col fixed h-full bg-[#161B22] z-20">
+    return <div className="min-h-screen bg-[#0A0C10] text-[#E1E4E8] flex font-sans max-md:flex-col">
+      {/* Barra superior del complejo (solo mobile) */}
+      <div className="md:hidden sticky top-0 z-30 bg-[#161B22]/95 backdrop-blur border-b border-[#30363D] pt-[env(safe-area-inset-top)]">
+        <div className="h-14 px-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-8 h-8 shrink-0 bg-[#238636] rounded-xl flex items-center justify-center font-black text-lg">F</div>
+            <span className="text-lg font-black uppercase tracking-tight truncate">FutData <span className="text-[#7ee2a3]">Complejos</span></span>
+          </div>
+          <button onClick={logout} className="shrink-0 flex items-center gap-1.5 text-sm text-[#8B949E] border border-[#30363D] rounded-lg px-3 py-2 active:text-red-400" aria-label="Cerrar sesión">
+            <LogOut size={16}/>Salir
+          </button>
+        </div>
+      </div>
+      <aside className="w-16 md:w-64 border-r border-[#30363D] flex flex-col fixed h-full bg-[#161B22] z-20 max-md:hidden">
         <div className="p-4 md:p-6 flex items-center"><div className="w-10 h-10 bg-[#238636] rounded-xl flex items-center justify-center font-black text-xl">F</div><span className="ml-3 text-xl font-black uppercase tracking-tight hidden md:block">FutData <span className="text-[#7ee2a3]">Complejos</span></span></div>
         <nav className="flex-1 px-3 mt-8"><div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-[#238636]/15 text-[#7ee2a3]"><Building2 size={19}/><span className="hidden md:block font-bold text-sm">Agenda del complejo</span></div></nav>
         <div className="p-4 border-t border-[#30363D]"><p className="text-xs text-[#8B949E] truncate hidden md:block mb-3">{user.email}</p><button onClick={logout} className="flex items-center gap-2 text-sm text-[#8B949E] hover:text-red-400"><LogOut size={16}/><span className="hidden md:block">Cerrar sesión</span></button></div>
       </aside>
-      <main className="flex-1 ml-16 md:ml-64 p-4 sm:p-6 md:p-10"><header className="mb-8 border-b border-[#30363D] pb-6"><p className="text-xs uppercase tracking-[0.2em] text-[#7ee2a3] font-mono mb-2">Portal de establecimientos</p><h1 className="text-4xl md:text-5xl font-black uppercase tracking-tight">Agenda del complejo</h1><p className="text-[#8B949E] mt-2">Administrá tus canchas y todos los turnos desde un solo lugar.</p></header><Venues user={user} mode="owner"/></main>
+      <main className="flex-1 ml-16 md:ml-64 p-4 sm:p-6 md:p-10 max-md:ml-0 max-md:min-w-0 max-md:pb-[calc(2rem+env(safe-area-inset-bottom))]"><header className="mb-8 border-b border-[#30363D] pb-6 max-md:mb-5 max-md:pb-4"><p className="text-xs uppercase tracking-[0.2em] text-[#7ee2a3] font-mono mb-2 max-md:mb-1">Portal de establecimientos</p><h1 className="text-4xl md:text-5xl font-black uppercase tracking-tight max-md:text-3xl">Agenda del complejo</h1><p className="text-[#8B949E] mt-2 max-md:text-sm">Administrá tus canchas y todos los turnos desde un solo lugar.</p></header><Venues user={user} mode="owner"/></main>
     </div>;
   }
 
   return (
-    <div className="min-h-screen bg-[#0A0C10] text-[#E1E4E8] flex font-sans selection:bg-[#238636]/30 selection:text-white">
-      
+    <div className="min-h-screen bg-[#0A0C10] text-[#E1E4E8] flex font-sans selection:bg-[#238636]/30 selection:text-white max-md:flex-col">
+
+      {/* Barra superior (solo mobile) */}
+      <div className="md:hidden sticky top-0 z-30 bg-[#161B22]/95 backdrop-blur border-b border-[#30363D] pt-[env(safe-area-inset-top)]">
+        <div className="h-14 px-4 flex items-center justify-between">
+          <button onClick={() => setActiveTab('dashboard')} className="flex items-center gap-2" aria-label="Ir al inicio">
+            <div className="w-8 h-8 bg-[#238636] rounded-xl flex items-center justify-center font-bold text-lg text-white shadow-lg shadow-[#238636]/20">F</div>
+            <span className="text-xl font-black uppercase tracking-tighter text-white font-display">FutData</span>
+          </button>
+          <button onClick={() => setActiveTab('profile')} aria-label="Ir al perfil" className="p-1 -m-1">
+            <img src={user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName}`} alt="" referrerPolicy="no-referrer" className={`w-8 h-8 rounded-full border ${activeTab === 'profile' ? 'border-[#238636]' : 'border-[#30363D]'}`} />
+          </button>
+        </div>
+      </div>
+
       {/* Sidebar - Navigation Rail */}
-      <aside className="w-16 md:w-64 border-r border-[#30363D] flex flex-col fixed h-full bg-[#161B22] z-20">
+      <aside className="w-16 md:w-64 border-r border-[#30363D] flex flex-col fixed h-full bg-[#161B22] z-20 max-md:hidden">
         <div className="p-4 md:p-6 flex justify-center md:justify-start">
           <div className="w-8 h-8 md:w-10 md:h-10 bg-[#238636] rounded-xl flex items-center justify-center font-bold text-lg md:text-xl text-white shadow-lg shadow-[#238636]/20">F</div>
           <h1 className="ml-3 text-2xl font-black uppercase tracking-tighter text-white hidden md:block font-display">FutData</h1>
@@ -654,13 +688,15 @@ if (isGooglePlayer) {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 ml-16 md:ml-64 p-4 sm:p-6 md:p-10 relative">
-        
+      <main className="flex-1 ml-16 md:ml-64 p-4 sm:p-6 md:p-10 relative max-md:ml-0 max-md:min-w-0 max-md:pb-28">
+
         {/* Header */}
-        <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12 border-b border-[#30363D] pb-10">
+        <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12 border-b border-[#30363D] pb-10 max-md:gap-3 max-md:mb-5 max-md:pb-4">
           <div>
-            <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tighter mb-2 text-white font-display">
-              {activeTab === 'dashboard' ? 'Inicio' : activeTab === 'diary' ? 'Diario de partidos' : activeTab === 'calendar' ? 'Calendario' : activeTab === 'profile' ? 'Perfil' : activeTab === 'groups' ? 'Grupos' : activeTab === 'teamMatches' ? 'Partidos' : activeTab === 'venues' ? 'Canchas' : 'Inicio'}
+            <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tighter mb-2 text-white font-display max-md:text-3xl max-md:mb-1">
+              {activeTab === 'teamMatches'
+                ? <><span className="max-md:hidden">Partidos</span><span className="md:hidden">Rivales</span></>
+                : activeTab === 'dashboard' ? 'Inicio' : activeTab === 'diary' ? 'Diario de partidos' : activeTab === 'calendar' ? 'Calendario' : activeTab === 'profile' ? 'Perfil' : activeTab === 'groups' ? 'Grupos' : activeTab === 'venues' ? 'Canchas' : 'Inicio'}
             </h2>
             <p className="text-[#8B949E] font-mono text-[10px] uppercase tracking-[0.2em]">
               Temporada 2026 • {matches.length} partidos jugados
@@ -668,34 +704,61 @@ if (isGooglePlayer) {
           </div>
           {(['dashboard','diary','calendar'].includes(activeTab)) && <button 
             onClick={handleOpenAddModal}
-            className="flex items-center justify-center gap-2 px-6 py-3 bg-[#238636] text-white rounded-lg font-bold hover:bg-[#2ea043] transition-all shadow-lg shadow-[#238636]/20 active:translate-y-px border border-[#238636]/30"
+            className="flex items-center justify-center gap-2 px-6 py-3 bg-[#238636] text-white rounded-lg font-bold hover:bg-[#2ea043] transition-all shadow-lg shadow-[#238636]/20 active:translate-y-px border border-[#238636]/30 max-md:hidden"
           >
             <Plus className="w-5 h-5" />
             <span>Registrar partido</span>
           </button>}
         </header>
 
+        {/* Mobile: sub-secciones de Inicio (Resumen / Calendario / Diario) */}
+        {(['dashboard','diary','calendar'].includes(activeTab)) && (
+          <div className="md:hidden grid grid-cols-3 gap-1 p-1 mb-5 bg-[#161B22] border border-[#30363D] rounded-xl">
+            {([['dashboard', 'Resumen', LayoutDashboard], ['calendar', 'Calendario', Calendar], ['diary', 'Diario', HistoryIcon]] as const).map(([tab, label, Icon]) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`py-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-colors ${activeTab === tab ? 'bg-[#238636] text-white shadow-lg shadow-[#238636]/20' : 'text-[#8B949E]'}`}
+              >
+                <Icon className="w-4 h-4" />
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Mobile: botón flotante para registrar partido */}
+        {(['dashboard','diary','calendar'].includes(activeTab)) && (
+          <button
+            onClick={handleOpenAddModal}
+            aria-label="Registrar partido"
+            className="md:hidden fixed right-4 bottom-[calc(76px+env(safe-area-inset-bottom))] z-30 w-14 h-14 rounded-full bg-[#238636] text-white flex items-center justify-center shadow-xl shadow-[#238636]/30 border border-[#2ea043] active:scale-95 transition-transform"
+          >
+            <Plus className="w-7 h-7" />
+          </button>
+        )}
+
         <AnimatePresence mode="wait">
           {activeTab === 'groups' && <Groups user={user} />}
           {activeTab === 'teamMatches' && <TeamMatches user={user} />}
-          {activeTab === 'venues' && <Venues user={user} />}
+          {activeTab === 'venues' && <Venues user={user} mode="player" />}
           {activeTab === 'dashboard' && (
             <motion.div 
               key="dashboard"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-md:grid-cols-2 max-md:gap-3"
             >
               <MetricCard title="Calificación promedio" value={(stats.avgRating / (stats.totalMatches || 1)).toFixed(1)} icon={TrendingUp} colorClass="text-[#238636]" />
               <MetricCard title="Goles Totales" value={stats.totalGoals} icon={Trophy} />
               <MetricCard title="Asistencias" value={stats.totalAssists} icon={UserIcon} />
               <MetricCard title="Partidos" value={stats.totalMatches} icon={Calendar} />
 
-              <div className="col-span-full grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-                <div className="lg:col-span-2 bg-[#161B22] border border-[#30363D] p-6 rounded-xl">
-                  <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#8B949E] mb-8">Tendencia de Rendimiento</h3>
-                  <div className="h-[300px]">
+              <div className="col-span-full grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6 max-md:gap-3 max-md:mt-0">
+                <div className="lg:col-span-2 bg-[#161B22] border border-[#30363D] p-6 rounded-xl max-md:p-4 max-md:min-w-0">
+                  <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#8B949E] mb-8 max-md:mb-4">Tendencia de Rendimiento</h3>
+                  <div className="h-[300px] max-md:h-[220px] max-md:-ml-4">
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={chartData}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#30363D" vertical={false} />
@@ -731,9 +794,9 @@ if (isGooglePlayer) {
                   </div>
                 </div>
 
-                <div className="bg-[#161B22] border border-[#30363D] p-6 rounded-xl flex flex-col">
-                  <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#8B949E] mb-8">Historial de resultados</h3>
-                  <div className="flex-1 flex flex-col justify-center gap-6">
+                <div className="bg-[#161B22] border border-[#30363D] p-6 rounded-xl flex flex-col max-md:p-4">
+                  <h3 className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#8B949E] mb-8 max-md:mb-4">Historial de resultados</h3>
+                  <div className="flex-1 flex flex-col justify-center gap-6 max-md:gap-4">
                     <ResultBar label="Victorias" count={stats.wins} total={stats.totalMatches} color="emerald" />
                     <ResultBar label="Empates" count={stats.draws} total={stats.totalMatches} color="amber" />
                     <ResultBar label="Derrotas" count={stats.losses} total={stats.totalMatches} color="rose" />
@@ -761,12 +824,12 @@ if (isGooglePlayer) {
                         placeholder="Buscar oponente..." 
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full bg-[#0A0C10] border border-[#30363D] rounded-lg pl-9 pr-4 py-1.5 text-xs focus:outline-none focus:border-[#238636] transition-colors text-[#E1E4E8]"
+                        className="w-full bg-[#0A0C10] border border-[#30363D] rounded-lg pl-9 pr-4 py-1.5 text-xs focus:outline-none focus:border-[#238636] transition-colors text-[#E1E4E8] max-md:py-2.5 max-md:text-sm"
                       />
                     </div>
-                    <button 
+                    <button
                       onClick={() => setShowFilters(!showFilters)}
-                      className={`flex items-center gap-2 p-1.5 px-3 text-xs rounded-lg transition-colors border ${showFilters ? 'bg-[#238636] text-white border-[#238636]' : 'text-[#8B949E] hover:text-[#E1E4E8] border-[#30363D]'}`}
+                      className={`flex items-center gap-2 p-1.5 px-3 text-xs rounded-lg transition-colors border max-md:p-2.5 max-md:px-3.5 ${showFilters ? 'bg-[#238636] text-white border-[#238636]' : 'text-[#8B949E] hover:text-[#E1E4E8] border-[#30363D]'}`}
                     >
                       <Filter className="w-3.5 h-3.5" />
                       <span className="hidden sm:inline">Filtros</span>
@@ -784,7 +847,7 @@ if (isGooglePlayer) {
                         <input 
                           type="number" min="0" value={filters.minGoals} 
                           onChange={e => setFilters({...filters, minGoals: Number(e.target.value)})}
-                          className="w-full bg-[#0A0C10] border border-[#30363D] rounded px-2 py-1 text-xs"
+                          className="w-full bg-[#0A0C10] border border-[#30363D] rounded px-2 py-1 text-xs max-md:py-2 max-md:text-sm"
                         />
                       </div>
                       <div className="space-y-1">
@@ -792,7 +855,7 @@ if (isGooglePlayer) {
                         <input 
                           type="number" min="0" value={filters.minAssists} 
                           onChange={e => setFilters({...filters, minAssists: Number(e.target.value)})}
-                          className="w-full bg-[#0A0C10] border border-[#30363D] rounded px-2 py-1 text-xs"
+                          className="w-full bg-[#0A0C10] border border-[#30363D] rounded px-2 py-1 text-xs max-md:py-2 max-md:text-sm"
                         />
                       </div>
                       <div className="space-y-1">
@@ -800,7 +863,7 @@ if (isGooglePlayer) {
                         <input 
                           type="number" min="0" max="10" step="0.5" value={filters.minRating} 
                           onChange={e => setFilters({...filters, minRating: Number(e.target.value)})}
-                          className="w-full bg-[#0A0C10] border border-[#30363D] rounded px-2 py-1 text-xs"
+                          className="w-full bg-[#0A0C10] border border-[#30363D] rounded px-2 py-1 text-xs max-md:py-2 max-md:text-sm"
                         />
                       </div>
                       <div className="space-y-1">
@@ -808,7 +871,7 @@ if (isGooglePlayer) {
                         <input 
                           type="date" value={filters.startDate} 
                           onChange={e => setFilters({...filters, startDate: e.target.value})}
-                          className="w-full bg-[#0A0C10] border border-[#30363D] rounded px-2 py-1 text-[10px]"
+                          className="w-full bg-[#0A0C10] border border-[#30363D] rounded px-2 py-1 text-[10px] max-md:py-2 max-md:text-sm"
                         />
                       </div>
                       <div className="space-y-1">
@@ -816,7 +879,7 @@ if (isGooglePlayer) {
                         <input 
                           type="date" value={filters.endDate} 
                           onChange={e => setFilters({...filters, endDate: e.target.value})}
-                          className="w-full bg-[#0A0C10] border border-[#30363D] rounded px-2 py-1 text-[10px]"
+                          className="w-full bg-[#0A0C10] border border-[#30363D] rounded px-2 py-1 text-[10px] max-md:py-2 max-md:text-sm"
                         />
                       </div>
                       <div className="flex items-center gap-2 mt-2">
@@ -900,11 +963,11 @@ if (isGooglePlayer) {
             >
               <div className="bg-[#161B22] border border-[#30363D] rounded-2xl overflow-hidden shadow-2xl">
                 {/* Calendar Header */}
-                <div className="p-6 border-b border-[#30363D] flex items-center justify-between bg-[#0D1117]">
-                  <h3 className="text-xl font-bold text-white uppercase tracking-tight">
+                <div className="p-6 border-b border-[#30363D] flex items-center justify-between bg-[#0D1117] max-md:p-4 max-md:gap-2">
+                  <h3 className="text-xl font-bold text-white uppercase tracking-tight max-md:text-base">
                     {format(currentMonth, 'MMMM yyyy')}
                   </h3>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 max-md:shrink-0">
                     <button 
                       onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
                       className="p-2 hover:bg-[#30363D] rounded-lg text-[#8B949E] hover:text-white transition-colors border border-[#30363D]"
@@ -912,7 +975,7 @@ if (isGooglePlayer) {
                       <ChevronLeft className="w-5 h-5" />
                     </button>
                     <button 
-                      onClick={() => setCurrentMonth(new Date())}
+                      onClick={() => { setCurrentMonth(new Date()); setSelectedDay(new Date()); }}
                       className="px-4 py-2 text-xs font-mono font-bold uppercase tracking-widest text-[#8B949E] hover:text-white hover:bg-[#30363D] rounded-lg border border-[#30363D] transition-colors"
                     >
                       Hoy
@@ -927,16 +990,16 @@ if (isGooglePlayer) {
                 </div>
 
                 {/* Calendar Grid */}
-                <div className="p-4 bg-[#0D1117]/50">
-                  <div className="grid grid-cols-7 mb-2">
+                <div className="p-4 bg-[#0D1117]/50 max-md:p-2 max-md:pb-0">
+                  <div className="grid grid-cols-7 mb-2 max-md:mb-1">
                     {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(day => (
-                      <div key={day} className="text-center py-2 text-[10px] font-mono text-[#8B949E] uppercase tracking-widest font-bold">
+                      <div key={day} className="text-center py-2 text-[10px] font-mono text-[#8B949E] uppercase tracking-widest font-bold max-md:tracking-normal">
                         {day}
                       </div>
                     ))}
                   </div>
 
-                  <div className="grid grid-cols-7 gap-px bg-[#30363D] border border-[#30363D] rounded-lg overflow-hidden">
+                  <div className="grid grid-cols-7 gap-px bg-[#30363D] border border-[#30363D] rounded-lg overflow-hidden max-md:hidden">
                     {(() => {
                       const monthStart = startOfMonth(currentMonth);
                       const monthEnd = endOfMonth(monthStart);
@@ -991,6 +1054,83 @@ if (isGooglePlayer) {
                   </div>
                 </div>
 
+                {/* Calendario mobile: grilla compacta con puntos + detalle del día elegido */}
+                {(() => {
+                  const monthStart = startOfMonth(currentMonth);
+                  const calendarDays = eachDayOfInterval({ start: startOfWeek(monthStart), end: endOfWeek(endOfMonth(monthStart)) });
+                  const matchesOn = (day: Date) => matches.filter(m => {
+                    const mDate = m.date instanceof Timestamp ? m.date.toDate() : m.date;
+                    return mDate instanceof Date && isSameDay(mDate, day);
+                  });
+                  const bookingsOn = (day: Date) => venueBookings.filter((b: any) => b.date === format(day, 'yyyy-MM-dd'));
+                  const resultOf = (m: MatchEntry) => m.scoreFor > m.scoreAgainst ? 'W' : m.scoreFor < m.scoreAgainst ? 'L' : 'D';
+                  const dotColor = (r: string) => r === 'W' ? 'bg-[#238636]' : r === 'L' ? 'bg-[#f85149]' : 'bg-[#d29922]';
+                  const selMatches = matchesOn(selectedDay);
+                  const selBookings = bookingsOn(selectedDay).sort((a: any, b: any) => String(a.startTime).localeCompare(String(b.startTime)));
+                  const weekDays = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+                  return (
+                    <div className="md:hidden">
+                      <div className="grid grid-cols-7 gap-1 px-2 pb-3 bg-[#0D1117]/50">
+                        {calendarDays.map((day, idx) => {
+                          const dm = matchesOn(day);
+                          const dayB = bookingsOn(day);
+                          const isSelected = isSameDay(day, selectedDay);
+                          const isToday = isSameDay(day, new Date());
+                          return (
+                            <button
+                              key={idx}
+                              onClick={() => { setSelectedDay(day); if (!isSameMonth(day, monthStart)) setCurrentMonth(day); }}
+                              className={`h-12 rounded-lg flex flex-col items-center justify-center gap-1 border transition-colors ${isSelected ? 'border-[#238636] bg-[#238636]/15' : 'border-transparent bg-[#0D1117]'} ${!isSameMonth(day, monthStart) ? 'opacity-30' : ''}`}
+                              aria-label={`${format(day, 'd/M/yyyy')}: ${dm.length} partidos, ${dayB.length} reservas`}
+                            >
+                              <span className={`text-xs font-mono leading-none ${isToday ? 'bg-[#238636] text-white px-1.5 py-0.5 rounded-full' : isSelected ? 'text-white font-bold' : 'text-[#8B949E]'}`}>
+                                {format(day, 'd')}
+                              </span>
+                              <span className="flex gap-0.5 h-1.5">
+                                {dm.slice(0, 3).map(m => <span key={m.id} className={`w-1.5 h-1.5 rounded-full ${dotColor(resultOf(m))}`} />)}
+                                {dayB.slice(0, Math.max(0, 3 - dm.length)).map((b: any) => <span key={b.id} className="w-1.5 h-1.5 rounded-full bg-[#58A6FF]" />)}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <div className="border-t border-[#30363D] p-4 space-y-2">
+                        <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#8B949E]">
+                          {weekDays[selectedDay.getDay()]} {format(selectedDay, 'd/M/yyyy')}
+                        </p>
+                        {selMatches.length === 0 && selBookings.length === 0 && (
+                          <p className="text-sm text-[#8B949E] py-2">Sin partidos ni reservas este día.</p>
+                        )}
+                        {selBookings.map((b: any) => (
+                          <div key={b.id} className="flex items-center gap-3 bg-[#0D1117] border border-[#30363D] rounded-xl p-3">
+                            <div className="w-1 self-stretch rounded-full bg-[#58A6FF]" />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-bold text-white">{b.startTime}{b.endTime ? ` – ${b.endTime}` : ''} · {b.format}</p>
+                              <p className="text-xs text-[#8B949E] truncate">{b.complexName} · {b.courtName}</p>
+                            </div>
+                            <MapPin className="w-4 h-4 text-[#8B949E] shrink-0" />
+                          </div>
+                        ))}
+                        {selMatches.map(m => {
+                          const r = resultOf(m);
+                          return (
+                            <button key={m.id} onClick={() => handleEditMatch(m)} className="w-full flex items-center gap-3 bg-[#0D1117] border border-[#30363D] rounded-xl p-3 text-left active:border-[#484f58]">
+                              <span className={`w-9 h-9 shrink-0 rounded-lg flex items-center justify-center text-xs font-black text-white ${dotColor(r)}`}>{r}</span>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-bold text-white truncate">vs {m.opponent || 'Casual Match'}</p>
+                                <p className="text-xs text-[#8B949E]">{m.scoreFor}-{m.scoreAgainst} · {m.goals} G · {m.assists} A · Calif. {Number(m.rating || 0).toFixed(1)}</p>
+                              </div>
+                              <Edit2 className="w-4 h-4 text-[#8B949E] shrink-0" />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {/* Legend */}
                 <div className="p-4 bg-[#0D1117] border-t border-[#30363D] flex flex-wrap gap-4 justify-center sm:justify-start">
                   <div className="flex items-center gap-2">
@@ -1004,6 +1144,10 @@ if (isGooglePlayer) {
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded bg-[#f85149]" />
                     <span className="text-[10px] font-mono text-[#8B949E] uppercase">Derrota</span>
+                  </div>
+                  <div className="flex items-center gap-2 md:hidden">
+                    <div className="w-3 h-3 rounded bg-[#58A6FF]" />
+                    <span className="text-[10px] font-mono text-[#8B949E] uppercase">Reserva</span>
                   </div>
                 </div>
               </div>
@@ -1019,9 +1163,9 @@ if (isGooglePlayer) {
               className="max-w-2xl"
             >
               <div className="bg-[#161B22] border border-[#30363D] rounded-2xl overflow-hidden shadow-2xl">
-                <div className="p-8 border-b border-[#30363D] bg-[#0D1117]">
-                  <div className="flex flex-col sm:flex-row items-center gap-6">
-                    <div className="w-24 h-24 rounded-full border-4 border-[#30363D] overflow-hidden bg-[#0A0C10] flex-shrink-0">
+                <div className="p-8 border-b border-[#30363D] bg-[#0D1117] max-md:p-5">
+                  <div className="flex flex-col sm:flex-row items-center gap-6 max-md:flex-col max-md:gap-3">
+                    <div className="w-24 h-24 rounded-full border-4 border-[#30363D] overflow-hidden bg-[#0A0C10] flex-shrink-0 max-md:w-20 max-md:h-20">
                       {profile.photoURL ? (
                         <img src={profile.photoURL} alt="Perfil" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                       ) : (
@@ -1030,14 +1174,14 @@ if (isGooglePlayer) {
                         </div>
                       )}
                     </div>
-                    <div className="text-center sm:text-left">
-                      <h3 className="text-2xl font-bold text-white mb-1">{profile.displayName}</h3>
-                      <p className="text-[#8B949E] font-mono text-sm uppercase tracking-wider">{profile.email}</p>
+                    <div className="text-center sm:text-left max-md:text-center max-md:min-w-0 max-md:w-full">
+                      <h3 className="text-2xl font-bold text-white mb-1 max-md:text-xl">{profile.displayName}</h3>
+                      <p className="text-[#8B949E] font-mono text-sm uppercase tracking-wider max-md:text-xs max-md:break-all">{profile.email}</p>
                     </div>
                   </div>
                 </div>
 
-                <form onSubmit={handleUpdateProfile} className="p-8 space-y-8">
+                <form onSubmit={handleUpdateProfile} className="p-8 space-y-8 max-md:p-5 max-md:space-y-5">
                   <div className="space-y-2">
                     <label className="text-xs font-mono text-[#8B949E] uppercase tracking-widest pl-1 font-bold">Nombre de Jugador</label>
                     <input 
@@ -1048,7 +1192,7 @@ if (isGooglePlayer) {
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-md:gap-5">
                     <div className="space-y-2">
                       <label className="text-xs font-mono text-[#8B949E] uppercase tracking-widest pl-1 font-bold">Fecha de Nacimiento</label>
                       <input 
@@ -1130,6 +1274,18 @@ if (isGooglePlayer) {
                     </button>
                   </div>
                 </form>
+
+                {/* Mobile: cerrar sesión (en escritorio está en la barra lateral) */}
+                <div className="md:hidden px-5 pb-5">
+                  <button
+                    type="button"
+                    onClick={logout}
+                    className="w-full py-3 rounded-xl border border-[#30363D] text-[#f85149] font-bold flex items-center justify-center gap-2 active:bg-[#f85149]/10"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Cerrar sesión
+                  </button>
+                </div>
               </div>
             </motion.div>
           )}
@@ -1138,7 +1294,7 @@ if (isGooglePlayer) {
         {/* Modal Add Match */}
         <AnimatePresence>
           {isAddModalOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 max-md:items-end max-md:p-0">
               <motion.div 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -1150,18 +1306,18 @@ if (isGooglePlayer) {
                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                className="relative w-full max-w-2xl bg-[#161B22] border border-[#30363D] shadow-2xl rounded-2xl overflow-hidden"
+                className="relative w-full max-w-2xl bg-[#161B22] border border-[#30363D] shadow-2xl rounded-2xl overflow-hidden max-md:rounded-b-none max-md:border-b-0"
               >
-                <div className="p-6 border-b border-[#30363D] flex justify-between items-center bg-[#0D1117]">
-                  <h3 className="text-xl font-bold uppercase tracking-tight text-white">
+                <div className="p-6 border-b border-[#30363D] flex justify-between items-center bg-[#0D1117] max-md:p-4 max-md:pl-5">
+                  <h3 className="text-xl font-bold uppercase tracking-tight text-white max-md:text-lg">
                     {editingMatch ? 'Editar Partido' : 'Registro de Partido'}
                   </h3>
-                  <button onClick={() => { setIsAddModalOpen(false); setEditingMatch(null); }} className="text-[#8B949E] hover:text-white transition-colors">
+                  <button onClick={() => { setIsAddModalOpen(false); setEditingMatch(null); }} aria-label="Cerrar" className="text-[#8B949E] hover:text-white transition-colors max-md:p-2 max-md:-m-2">
                     <X className="w-6 h-6" />
                   </button>
                 </div>
                 
-                <form onSubmit={handleUpsertMatch} className="p-8 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
+                <form onSubmit={handleUpsertMatch} className="p-8 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar max-md:p-5 max-md:gap-y-5 max-md:max-h-[82vh] max-md:pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
                   <div className="space-y-2">
                     <label className="text-[10px] font-mono text-[#8B949E] uppercase tracking-widest">Fecha</label>
                     <input 
@@ -1201,7 +1357,7 @@ if (isGooglePlayer) {
                       type="range" min="1" max="10" step="0.5" 
                       value={formData.rating}
                       onChange={e => setFormData({...formData, rating: Number(e.target.value)})}
-                      className="w-full accent-[#238636] cursor-pointer"
+                      className="w-full accent-[#238636] cursor-pointer max-md:h-8"
                     />
                   </div>
 
@@ -1253,7 +1409,33 @@ if (isGooglePlayer) {
         </AnimatePresence>
 
       </main>
+
+      {/* Barra de navegación inferior (solo mobile) */}
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-[#161B22]/95 backdrop-blur border-t border-[#30363D] pb-[env(safe-area-inset-bottom)]" aria-label="Navegación principal">
+        <div className="flex">
+          <MobileNavItem icon={LayoutDashboard} label="Inicio" active={['dashboard', 'calendar', 'diary'].includes(activeTab)} onClick={() => setActiveTab('dashboard')} />
+          <MobileNavItem icon={Users} label="Grupos" active={activeTab === 'groups'} onClick={() => setActiveTab('groups')} />
+          <MobileNavItem icon={Swords} label="Rivales" active={activeTab === 'teamMatches'} onClick={() => setActiveTab('teamMatches')} />
+          <MobileNavItem icon={MapPin} label="Canchas" active={activeTab === 'venues'} onClick={() => setActiveTab('venues')} />
+          <MobileNavItem icon={UserIcon} label="Perfil" active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} />
+        </div>
+      </nav>
     </div>
+  );
+}
+
+function MobileNavItem({ icon: Icon, label, active, onClick }: { icon: any, label: string, active: boolean, onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-current={active ? 'page' : undefined}
+      className={`flex-1 min-w-0 flex flex-col items-center justify-center gap-1 pt-2 pb-1.5 min-h-[60px] transition-colors ${active ? 'text-[#7ee2a3]' : 'text-[#8B949E] active:text-[#E1E4E8]'}`}
+    >
+      <span className={`px-4 py-1 rounded-full transition-colors ${active ? 'bg-[#238636]/20' : ''}`}>
+        <Icon className="w-5 h-5" />
+      </span>
+      <span className="text-[10px] font-bold uppercase tracking-wide truncate">{label}</span>
+    </button>
   );
 }
 
@@ -1309,7 +1491,7 @@ function NumberInput({ label, value, onChange, max }: { label: string, value: nu
         <button 
           type="button"
           onClick={() => onChange(Math.max(0, value - 1))}
-          className="w-8 h-8 flex items-center justify-center hover:bg-[#161B22] rounded-md transition-colors text-[#8B949E] hover:text-[#E1E4E8]"
+          className="w-8 h-8 flex items-center justify-center hover:bg-[#161B22] rounded-md transition-colors text-[#8B949E] hover:text-[#E1E4E8] max-md:w-10 max-md:h-10 max-md:text-lg"
         >
           -
         </button>
@@ -1317,7 +1499,7 @@ function NumberInput({ label, value, onChange, max }: { label: string, value: nu
         <button 
           type="button"
           onClick={() => onChange(max !== undefined ? Math.min(max, value + 1) : value + 1)}
-          className="w-8 h-8 flex items-center justify-center hover:bg-[#161B22] rounded-md transition-colors text-[#8B949E] hover:text-[#E1E4E8]"
+          className="w-8 h-8 flex items-center justify-center hover:bg-[#161B22] rounded-md transition-colors text-[#8B949E] hover:text-[#E1E4E8] max-md:w-10 max-md:h-10 max-md:text-lg"
         >
           +
         </button>
