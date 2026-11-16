@@ -3,8 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { auth, db, loginWithGoogle, logout, loginComplexAccount, sendComplexPasswordReset } from './lib/firebase';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { auth, db, loginWithGoogle, logout, loginComplexAccount, sendComplexPasswordReset, isNativeApp } from './lib/firebase';
+import { runBackHandler } from './lib/backButton';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { 
   collection, 
@@ -42,6 +43,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { MatchEntry, PlayerStats, UserProfile } from './types';
 import { Groups, TeamMatches, Venues } from './Community';
+import { ComplexSignup } from './ComplexSignup';
 import { handleFirestoreError, OperationType } from './lib/errorHandling';
 import { 
   format,
@@ -162,8 +164,49 @@ export default function App() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [profileSaveSuccess, setProfileSaveSuccess] = useState(false);
   const [profileSaveError, setProfileSaveError] = useState<string | null>(null);
+  // Nombre guardado en el perfil de FutData (no el que se está escribiendo). Si no hay, se usa el de Google.
+  const [savedDisplayName, setSavedDisplayName] = useState('');
   // Día seleccionado en el calendario mobile (solo se usa en pantallas < 768 px)
   const [selectedDay, setSelectedDay] = useState(new Date());
+
+  // Landing pública para complejos, ligada a la dirección #registrar-complejo.
+  const SIGNUP_HASH = '#registrar-complejo';
+  const [showSignup, setShowSignup] = useState(() => typeof window !== 'undefined' && window.location.hash === SIGNUP_HASH);
+  useEffect(() => {
+    const onHash = () => setShowSignup(window.location.hash === SIGNUP_HASH);
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+  useEffect(() => { if (showSignup) window.scrollTo({ top: 0 }); }, [showSignup]);
+  const openSignup = () => { window.location.hash = SIGNUP_HASH; };
+  const closeSignup = () => {
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+    setShowSignup(false);
+  };
+
+  // Botón "atrás" de Android (solo en la app instalada): primero cierra lo que esté abierto
+  // (ventanas de Grupos o Canchas, registro de complejo, formulario de partido), después vuelve
+  // a Inicio y, si ya está en Inicio, minimiza la app.
+  const backRef = useRef<() => boolean>(() => false);
+  backRef.current = () => {
+    if (showSignup) { closeSignup(); return true; }
+    if (!user && loginMode === 'complex') { setLoginMode('choose'); setAuthError(''); return true; }
+    if (isAddModalOpen) { setIsAddModalOpen(false); setEditingMatch(null); return true; }
+    if (user && accountType === 'player' && activeTab !== 'dashboard') { setActiveTab('dashboard'); return true; }
+    return false;
+  };
+  useEffect(() => {
+    if (!isNativeApp) return;
+    let stopped = false;
+    let remove: (() => void) | undefined;
+    import('@capacitor/app').then(({ App: NativeApp }) =>
+      NativeApp.addListener('backButton', () => {
+        if (runBackHandler() || backRef.current()) return;
+        NativeApp.minimizeApp();
+      })
+    ).then(h => { if (stopped) h.remove(); else remove = () => { h.remove(); }; });
+    return () => { stopped = true; remove?.(); };
+  }, []);
 
   // En celulares, al cambiar de sección volvemos arriba (en escritorio no cambia nada).
   useEffect(() => {
@@ -210,6 +253,7 @@ export default function App() {
     const unsubscribeAuth = onAuthStateChanged(auth, async (u) => {
       setUser(u);
       setProfile(null);
+      setSavedDisplayName('');
       setMatches([]);
       setVenueBookings([]);
       setAccountType(null);
@@ -287,6 +331,7 @@ if (isGooglePlayer) {
             // Conserva los datos adicionales guardados y completa los datos faltantes
             // con la información disponible en la cuenta de Google.
             setProfile({ ...googleProfile, ...userDoc.data(), uid: u.uid } as UserProfile);
+            setSavedDisplayName(String(userDoc.data()?.displayName || ''));
           }
         } catch (err) {
           console.error('No se pudo cargar el perfil desde Firestore. Se usarán los datos de Google:', err);
@@ -358,6 +403,7 @@ if (isGooglePlayer) {
         updatedAt: serverTimestamp()
       }, { merge: true });
       setProfileSaveSuccess(true);
+      setSavedDisplayName(profile.displayName || '');
       setTimeout(() => setProfileSaveSuccess(false), 4000);
     } catch (err) {
       console.error("Profile update error:", err);
@@ -495,6 +541,11 @@ if (isGooglePlayer) {
     }
   };
 
+  // Página pública "Quiero registrar mi complejo" (también accesible con el enlace …/#registrar-complejo).
+  if (showSignup) {
+    return <ComplexSignup onBack={closeSignup} />;
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0A0C10] flex items-center justify-center">
@@ -573,6 +624,12 @@ if (isGooglePlayer) {
               >
                 Acceso para complejos
               </button>
+              <button
+                onClick={openSignup}
+                className="block mx-auto mt-1 text-xs text-[#7ee2a3] hover:underline underline-offset-4 max-md:text-sm max-md:py-2 max-md:px-3"
+              >
+                Quiero registrar mi complejo
+              </button>
             </div>
           </div>
         ) : (
@@ -585,7 +642,7 @@ if (isGooglePlayer) {
             {authNotice && <p className="text-sm text-[#7ee2a3]" role="status">{authNotice}</p>}
             <button disabled={authBusy} onClick={handleComplexAuth} className="w-full bg-[#238636] hover:bg-[#2ea043] disabled:opacity-50 rounded-xl py-3 font-bold">{authBusy ? 'Ingresando...' : 'Ingresar'}</button>
             <button type="button" disabled={authBusy} onClick={async () => { setAuthError(''); setAuthNotice(''); setAuthBusy(true); try { await sendComplexPasswordReset(); setAuthNotice('Enviamos un enlace para crear una nueva contraseña a complejofd@gmail.com. Revisá también Spam.'); } catch (err: any) { console.error('[FutData] Error al enviar recuperación:', err?.code, err); setAuthError(err?.message || 'No se pudo enviar el correo de recuperación.'); } finally { setAuthBusy(false); } }} className="w-full text-sm text-[#7ee2a3] hover:underline disabled:opacity-50">Recuperar contraseña</button>
-            <p className="text-xs text-[#8B949E]">Las cuentas de complejos son creadas y habilitadas exclusivamente por FutData.</p>
+            <p className="text-xs text-[#8B949E]">Las cuentas de complejos son creadas y habilitadas exclusivamente por FutData. <button type="button" onClick={openSignup} className="text-[#7ee2a3] hover:underline">Quiero registrar mi complejo</button></p>
           </div>
         )}
         {authError && loginMode === 'choose' && <p className="text-sm text-[#f85149] mt-5">{authError}</p>}
@@ -627,7 +684,7 @@ if (isGooglePlayer) {
             <span className="text-xl font-black uppercase tracking-tighter text-white font-display">FutData</span>
           </button>
           <button onClick={() => setActiveTab('profile')} aria-label="Ir al perfil" className="p-1 -m-1">
-            <img src={user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName}`} alt="" referrerPolicy="no-referrer" className={`w-8 h-8 rounded-full border ${activeTab === 'profile' ? 'border-[#238636]' : 'border-[#30363D]'}`} />
+            <img src={user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(savedDisplayName || user.displayName || '')}`} alt="" referrerPolicy="no-referrer" className={`w-8 h-8 rounded-full border ${activeTab === 'profile' ? 'border-[#238636]' : 'border-[#30363D]'}`} />
           </button>
         </div>
       </div>
@@ -671,9 +728,9 @@ if (isGooglePlayer) {
 
         <div className="p-4 border-t border-[#30363D]">
           <div className="flex items-center gap-3 p-3 rounded-xl hover:bg-[#0D1117] transition-colors group relative border border-transparent hover:border-[#30363D]">
-            <img src={user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName}`} alt={user.displayName || ""} className="w-8 h-8 rounded-full border border-[#30363D]" />
+            <img src={user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(savedDisplayName || user.displayName || '')}`} alt={savedDisplayName || user.displayName || ""} className="w-8 h-8 rounded-full border border-[#30363D]" />
             <div className="flex-1 min-w-0 hidden md:block">
-              <p className="text-xs font-bold truncate text-[#E1E4E8]">{user.displayName}</p>
+              <p className="text-xs font-bold truncate text-[#E1E4E8]">{savedDisplayName || user.displayName}</p>
               <p className="text-[10px] text-[#8B949E] truncate">{user.email}</p>
             </div>
             <button 

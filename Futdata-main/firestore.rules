@@ -96,6 +96,27 @@ service cloud.firestore {
       allow update, delete: if isComplexAccount() && existing().ownerId == request.auth.uid;
     }
 
+    // Solicitudes desde la página pública "Quiero registrar mi complejo".
+    // Cualquiera puede ENVIAR una; nadie puede leerlas, editarlas ni borrarlas desde la app.
+    // Se revisan en Firebase Console. No crean cuentas ni dan permisos.
+    function validComplexRequest(data) {
+      return data.keys().hasOnly(['complexName','managerName','email','phone','zone','courts','message','status','createdAt']) &&
+        data.keys().hasAll(['complexName','managerName','email','phone','zone','courts','message','status','createdAt']) &&
+        data.complexName is string && data.complexName.size() > 0 && data.complexName.size() <= 100 &&
+        data.managerName is string && data.managerName.size() > 0 && data.managerName.size() <= 100 &&
+        data.email is string && data.email.size() <= 100 && data.email.matches('^[a-z0-9._%+-]+@[a-z0-9.-]+[.][a-z]{2,}$') &&
+        data.phone is string && data.phone.matches('^[0-9 +()-]{6,25}$') &&
+        data.zone is string && data.zone.size() > 0 && data.zone.size() <= 100 &&
+        data.courts is int && data.courts >= 1 && data.courts <= 50 &&
+        data.message is string && data.message.size() <= 1000 &&
+        data.status == 'pendiente' &&
+        data.createdAt == request.time;
+    }
+    match /complexRequests/{requestId} {
+      allow create: if validComplexRequest(request.resource.data);
+      allow read, update, delete: if false;
+    }
+
     // Agenda central: el complejo administra turnos externos; las reservas online las crea el jugador.
     function bookingOwner() { return isComplexAccount() && resource.data.complexOwnerId == request.auth.uid; }
     function bookingParticipant() { return isSignedIn() && request.auth.uid in resource.data.participantIds; }
